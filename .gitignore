@@ -1,0 +1,17 @@
+node_modules/
+shots/
+.local-ai/
+backups/
+release/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.log
+*.pfx
+*.p12
+*.key
+*.pem
+.DS_Store
+Thumbs.db

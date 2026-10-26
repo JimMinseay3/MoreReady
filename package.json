@@ -1,0 +1,54 @@
+{
+  "name": "moreready-widget",
+  "version": "0.2.0",
+  "private": true,
+  "description": "MoreReady：桌面项目与任务管理应用",
+  "productName": "MoreReady",
+  "author": "JimMinseay3",
+  "homepage": "https://github.com/JimMinseay3/MoreReady",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JimMinseay3/MoreReady.git"
+  },
+  "main": "src/main.js",
+  "scripts": {
+    "web": "node tools/web-preview.js",
+    "dev:web": "node tools/web-preview.js",
+    "verify:web": "node tools/verify-web.js",
+    "verify:extensions": "node tools/verify-extensions.js",
+    "verify:views": "node tools/verify-display-modes.js",
+    "verify:calendar": "node tools/verify-calendar.js",
+    "verify:tabs": "node tools/verify-tabs.js",
+    "test:updates": "node tools/test-updates.js",
+    "verify:updates": "node tools/verify-updates.js",
+    "dist:win": "node tools/build-icon.js && electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never && node tools/verify-release.js",
+    "verify:release": "node tools/verify-release.js",
+    "publish:release": "node tools/publish-release.js",
+    "start": "node tools/launch.js",
+    "devtools": "node tools/launch.js --devtools",
+    "verify": "node tools/shot.js",
+    "verify:electron": "node tools/verify-desktop.js",
+    "test:graph": "node tools/test-task-graph.js",
+    "test:reminders": "node tools/test-reminders.js",
+    "test:workflows": "node tools/test-workflows.js",
+    "verify:workflows": "node tools/verify-workflows.js",
+    "verify:desktop-workflows": "node tools/verify-desktop-workflows.js",
+    "verify:system": "node tools/verify-system.js",
+    "verify:tree": "node tools/verify-desktop.js",
+    "verify:desktop": "node tools/verify-desktop.js"
+  },
+  "keywords": [
+    "electron",
+    "project-management",
+    "tasks"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "44.9.3",
+    "electron-builder": "26.18.0",
+    "playwright": "^1.63.0"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  }
+}

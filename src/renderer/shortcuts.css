@@ -1,0 +1,19 @@
+.shortcut-hint { font-size: 12px; color: var(--dim); line-height: 1.8; margin-bottom: 18px; }
+.shortcut-table-head, .shortcut-row { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(120px, 1fr) minmax(130px, 1fr); align-items: center; gap: 16px; }
+.shortcut-table-head { padding: 0 0 10px; color: var(--dim); font-size: 11px; }
+.shortcut-row { padding: 11px 0; border-top: 1px solid var(--line); }
+.shortcut-row b { font-size: 12px; font-weight: 500; }
+.shortcut-binding { justify-self: start; min-width: 115px; min-height: 30px; font-size: 11px; background: var(--field-bg); color: var(--text); border-color: var(--field-line); }
+.shortcut-bottom { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 15px; }
+.shortcut-bottom > span { font-size: 11px; color: var(--dim); line-height: 1.8; }
+.shortcut-mask { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px; background: #0005; }
+.shortcut-dialog { width: min(440px, 100%); padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--text); box-shadow: 0 15px 60px #0004; }
+.shortcut-dialog h2 { font-size: 16px; margin-bottom: 12px; }
+.shortcut-dialog p { font-size: 12px; color: var(--dim); line-height: 1.8; }
+.shortcut-dialog output { display: grid; place-items: center; min-height: 75px; padding: 12px; margin: 16px 0; background: var(--field-bg); border: 1px solid var(--field-line); border-radius: 10px; font-size: 20px; }
+.shortcut-dialog footer { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
+.shortcut-dialog footer > span { flex: 1; }
+.shortcut-dialog .btn { background: var(--field-bg); color: var(--text); border-color: var(--field-line); }
+.shortcut-dialog .btn.primary { background: var(--accent); color: var(--accent-on); }
+.shortcut-dialog button:disabled { opacity: .4; }
+@media (max-width: 700px) { .shortcut-table-head, .shortcut-row { grid-template-columns: minmax(115px, 1fr) minmax(100px, 1fr) minmax(105px, 1fr); gap: 6px; } .shortcut-binding { min-width: 0; width: 100%; padding: 5px; } }

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MoreReady</title>
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="desktop.css" />
+<link rel="stylesheet" href="theme.css" />
+<link rel="stylesheet" href="ai.css" />
+<link rel="stylesheet" href="shortcuts.css" />
+<link rel="stylesheet" href="workspace.css" />
+</head>
+<body>
+  <div id="app" class="app desktop-app" data-theme="aurora">
+    <header class="desktop-titlebar" id="desktopTitlebar">
+      <div class="workspace-tab-bar"><div class="workspace-tabs" id="workspaceTabs" role="tablist" aria-label="工作区标签页"></div><button class="workspace-tab-new" data-drop="workspace-tab" aria-label="新建标签页" aria-haspopup="listbox" aria-expanded="false" title="新建标签页">＋</button></div>
+      <div class="titlebar-drag-space" aria-hidden="true"></div>
+      <div class="desktop-window-controls" role="group" aria-label="应用窗口">
+        <button data-action="minimize" aria-label="最小化" title="最小化"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" aria-hidden="true"><path d="M1 6h10"/></svg></button>
+        <button data-action="maximize" id="maximizeBtn" aria-label="最大化" title="最大化"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9"/></svg></button>
+        <button data-action="close" class="window-close" aria-label="关闭" title="关闭"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" aria-hidden="true"><path d="m1.5 1.5 9 9m0-9-9 9"/></svg></button>
+      </div>
+    </header>
+    <div class="desktop-workspace">
+
+    <!-- ============ 竖向悬浮菜单（QQ 主菜单式整条竖栏） ============ -->
+    <aside class="rail" id="rail">
+
+      <header class="rail-brand">
+        <button class="brand" data-action="home" title="MoreReady · 今日概览">
+          <span class="workspace-mark" aria-hidden="true">M</span><span class="workspace-name">MoreReady</span><svg class="workspace-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 6 3 3 3-3"/></svg>
+        </button>
+      </header>
+
+      <nav class="rail-nav" id="railNav" aria-label="主导航">
+        <!-- 由 ui.js 渲染 -->
+      </nav>
+
+      <footer class="rail-foot"></footer>
+    </aside>
+
+    <!-- ============ 向右展开的详细页面 ============ -->
+    <main class="panel" id="panel" aria-live="polite">
+      <div class="panel-inner">
+        <header class="panel-head" id="panelHead"></header>
+        <div class="panel-body" id="panelBody"></div>
+      </div>
+
+    </main>
+
+    <!-- 第三栏保留项目列表，独立展示该项目的任务树或任务编辑。 -->
+    <aside class="detail-panel" id="detailPanel" aria-label="项目任务树" hidden>
+      <div class="panel-body detail-body" id="detailBody"></div>
+    </aside>
+
+    <div class="task-drawer-mask" id="taskDrawerMask" hidden>
+      <aside class="task-drawer" id="taskDrawer" role="region" aria-labelledby="taskDrawerTitle" tabindex="-1">
+        <header class="drawer-head" id="taskDrawerHead"></header>
+        <div class="panel-body drawer-body" id="taskDrawerBody"></div>
+        <footer class="drawer-actions" id="taskDrawerActions"></footer>
+      </aside>
+    </div>
+    </div>
+  </div>
+
+  <!-- ============ 居中弹层（项目编辑等） ============ -->
+  <div class="sheet-mask" id="sheetMask" hidden>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+  </div>
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script src="task-graph.js"></script>
+  <script src="graph-layout.js"></script>
+  <script src="dag-view.js"></script>
+  <script src="reminder-engine.js"></script>
+  <script src="store.js"></script>
+  <script src="overview-layout.js"></script>
+  <script src="appearance.js"></script>
+  <script src="color-picker.js"></script>
+  <script src="project-groups.js"></script>
+  <script src="shortcuts.js"></script>
+  <script src="ai-workflow.js"></script>
+  <script src="ai-assistant.js"></script>
+  <script src="system-settings.js"></script>
+  <script src="release-config.js"></script>
+  <script src="updates.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>
