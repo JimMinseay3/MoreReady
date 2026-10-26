@@ -62,6 +62,12 @@ async function openProject(page, id) {
 
 (async () => {
   let page = await launch();
+  // Hosted Windows desktops may be smaller than the reference viewport. Exercise the
+  // desktop layout at its documented size; the suite separately checks 1000px windows.
+  if (process.env.CI) {
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1440, 900));
+    await settled(page);
+  }
   const initial = await windowState();
   assert.ok(initial.bounds.width >= 960 && initial.bounds.height >= 620 && initial.resizable && initial.maximizable);
   assert.equal(initial.top, false);
