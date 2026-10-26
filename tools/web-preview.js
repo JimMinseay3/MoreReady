@@ -59,7 +59,8 @@ const CLIENT = `(() => {
 })();`;
 
 function createPreviewServer(root = RENDERER, options = {}) {
-  root = fs.realpathSync(root);
+  // Match promises.realpath below, including Windows runner profiles with 8.3 path aliases.
+  root = fs.realpathSync.native(root);
   const ai = options.aiService || createAIService({ configFile: options.aiConfigFile });
   const aiToken = crypto.randomUUID();
   let aiBusy = false;
@@ -134,7 +135,10 @@ function createPreviewServer(root = RENDERER, options = {}) {
       }
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
       res.end(req.method === 'HEAD' ? undefined : content);
-    } catch { res.writeHead(404); res.end('Not found'); }
+    } catch (error) {
+      options.onStaticError?.({ pathname, root, file, message: error.message });
+      res.writeHead(404); res.end('Not found');
+    }
   });
   const watcher = fs.watch(root, { recursive: true }, (event, filename) => {
     if (!filename) return;

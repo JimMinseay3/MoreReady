@@ -19,7 +19,8 @@ const { createPreviewServer } = require('./web-preview');
     }
   }
   copyRenderer(path.resolve(__dirname, '../src/renderer'), root);
-  const server = createPreviewServer(root);
+  const staticErrors = [];
+  const server = createPreviewServer(root, { onStaticError: info => staticErrors.push(info) });
   let browser;
   try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -27,7 +28,7 @@ const { createPreviewServer } = require('./web-preview');
     assert.equal((await (await fetch(base + '/__preview/health')).json()).app, 'MoreReady');
     assert.equal((await fetch(base + '/%2e%2e%5cpackage.json')).status, 404);
     assert.equal((await fetch(base + '/%E0%A4%A')).status, 400);
-    assert.equal((await fetch(base + '/ui.js', { method: 'HEAD' })).status, 200);
+    assert.equal((await fetch(base + '/ui.js', { method: 'HEAD' })).status, 200, JSON.stringify(staticErrors));
     assert.equal((await fetch(base + '/', { method: 'POST' })).status, 405);
     browser = await chromium.launch();
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, colorScheme: 'light' });
