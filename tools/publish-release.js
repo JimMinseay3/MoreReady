@@ -13,7 +13,7 @@ const existing = spawnSync('gh', ['release', 'view', tag, '--repo', repo, '--jso
 if (existing.status === 0) {
   if (!JSON.parse(existing.stdout).isDraft) throw new Error('This version is already public; publish a new version instead');
 } else {
-  gh(['release', 'create', tag, '--verify-tag', '--draft', '--title', `MoreReady ${tag}`, '--notes-file', path.resolve(__dirname, '../RELEASE_NOTES.md')]);
+  gh(['release', 'create', tag, '--target', 'main', '--draft', '--title', `MoreReady ${tag}`, '--notes-file', path.resolve(__dirname, '../RELEASE_NOTES.md')]);
 }
 // Publish only after every asset is uploaded, so update clients never see an incomplete release.
 for (const asset of result.assets) gh(['release', 'upload', tag, path.resolve(__dirname, '../release', asset), '--clobber']);

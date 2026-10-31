@@ -38,6 +38,8 @@
     today: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>'),
     project: svg('<path d="M3 7.5A2 2 0 0 1 5 5.5h4l2 2.5h6a2 2 0 0 1 2 2v6.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.5Z"/>'),
     board: svg('<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="10" rx="1.5"/><rect x="16" y="4" width="5" height="13" rx="1.5"/>'),
+    timeline: svg('<path d="M6 4v16M3 7h12M9 12h12M13 17h7"/>'),
+    move: svg('<path d="M3 7h8m-3-3 3 3-3 3M3 15h6l2 2h10V9H14"/>'),
     calendar: svg('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
     chart: svg('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
     inbox: svg('<path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6l2-8Z"/>'),
@@ -155,7 +157,7 @@
     scroll: {},               // 每个模块的滚动位置
     calMonth: null,           // {y,m}
     calSel: null,             // 'YYYY-MM-DD'
-    boardPage: { todo: 0, doing: 0, waiting: 0, done: 0 },
+    boardPage: { expired: 0, todo: 0, done: 0, archived: 0 },
     boardSize: 6,
     busy: false,
     projectQuery: '',
@@ -164,6 +166,8 @@
     projectScroll: 0,
     detailProjectId: null,
     detailViewport: {},
+    projectCreating: false,
+    timelineStart: null,
   };
 
   /* ---------------- 小工具 ---------------- */
@@ -289,7 +293,7 @@
       const owner = dropOwner;
       closeDropMenu();
       const action = item.dataset.dropAction;
-      if (action && ACTIONS[action]) ACTIONS[action](item.dataset.value, item);
+      if (action && ACTIONS[action]) ACTIONS[action](item.dataset.value, item, owner);
       else if (owner) {
         // 没绑动作时，直接把值写回触发按钮的文本
         const label = owner.querySelector('[data-drop-label]');
@@ -304,7 +308,7 @@
     if (!dropMenu) return;
     dropMenu.hidden = true;
     if (dropBackdrop) dropBackdrop.hidden = true;
-    if (dropOwner) dropOwner.setAttribute('aria-expanded', 'false');
+    if (dropOwner) { dropOwner.setAttribute('aria-expanded', 'false'); dropOwner.closest('.project-card')?.classList.remove('actions-open'); }
     dropOwner = null;
   }
 
@@ -315,6 +319,7 @@
     if (dropOwner === btn && !menu.hidden) { closeDropMenu(); return; }
     if (dropOwner) dropOwner.setAttribute('aria-expanded', 'false');
     dropOwner = btn;
+    btn.closest('.project-card')?.classList.add('actions-open');
     menu.dataset.kind = btn.dataset.drop || '';
     btn.setAttribute('aria-expanded', 'true');
 
@@ -413,6 +418,7 @@
     'workspace-tab'(key) { openModule(key); },
     scope(value) {
       S.state.activeProjectId = value;
+      view.boardPage = {}; view.timelineStart = null;
       S.save();
       renderRail();
       render();
@@ -430,6 +436,7 @@
     },
     'board-sort'(value) {
       view.boardSort = value;
+      view.boardPage = {};
       render();
     },
     'board-view'(value) { S.state.settings.boardView = value; S.save(); render(); },
@@ -441,6 +448,12 @@
     },
     'project-filter'(value) { view.projectFilter = value; view.projectScroll = 0; const results = $('projectResults'); if (results) results.scrollTop = 0; render(); },
     'project-layout'(value) { view.projectLayout = value; render(); },
+    'project-move'(value, _item, owner) {
+      const id = owner?.dataset.projectId;
+      if (!S.state.projects.some(project => project.id === id) || (value && !S.state.projectGroups.some(group => group.id === value))) return;
+      S.updateProject(id, { groupId: value });
+      refreshProjectResults(); toast('已移动至' + (S.state.projectGroups.find(group => group.id === value)?.name || '默认分组'));
+    },
     'task-reminder'(value) { setTaskChoice('reminder', value, R.MODES); refreshReminderField(); },
     'task-priority'(value) { setTaskChoice('priority', value, PRIORITY); },
     'task-project'(value) {
@@ -458,8 +471,10 @@
       if (subtitle) subtitle.textContent = projectNameOf(value);
       refreshReminderField();
     },
-    /** 任务表单里点「＋ 新建项目」：切到新建项目页，建好后回到任务表单并自动选中 */
+    /** 任务表单里新建项目：在画布中填写，完成后带着原草稿返回任务表单。 */
     'new-project-inline'() {
+      pendingTaskDraft = { ...JSON.parse(taskEditorSignature()), taskId: editingTaskId, module: S.state.activeModule,
+        dependencies: draftDependencies.slice(), baseline: taskEditorBaseline };
       pendingProjectForTask = true;
       openProjectPage(null);
     },
@@ -521,8 +536,8 @@
     if (bsearch) {
       bsearch.addEventListener('input', () => {
         view.boardQuery = bsearch.value;
-        const grid = panelBody.querySelector('#boardGrid');
-        if (grid) grid.innerHTML = boardColsHTML(boardTasks());
+        view.boardPage = {};
+        refreshBoardContent();
       });
     }
     const search = panelBody.querySelector('#searchInput');
@@ -698,6 +713,7 @@
           <b>${esc(p.name)}</b>
           <div class="project-card-actions">
             <button class="icon-btn" data-action="edit-project" data-id="${esc(p.id)}" title="编辑项目" aria-label="编辑项目">${I.edit}</button>
+            <button class="icon-btn" data-drop="project-group" data-project-id="${esc(p.id)}" data-value="${esc(p.groupId || '')}" aria-haspopup="listbox" aria-expanded="false" title="移动至分组" aria-label="移动至分组">${I.move}</button>
             <button class="icon-btn" data-action="archive-project" data-id="${esc(p.id)}" title="${p.archived ? '取消归档' : '归档项目'}" aria-label="${p.archived ? '取消归档' : '归档项目'}" aria-pressed="${!!p.archived}">${p.archived ? I.restore : I.archive}</button>
             <button class="icon-btn project-delete" data-action="delete-project" data-id="${esc(p.id)}" title="删除项目" aria-label="删除项目">${I.trash}</button>
           </div>
@@ -729,14 +745,14 @@
   }
   VIEWS.projects = function () {
     return `<div class="project-toolbar">
-      <button class="rail-cta project-new-button" data-action="new-project-page" title="新建项目">${I.project}<span>新建项目</span></button>
+      <div class="project-create-actions"><button class="rail-cta project-new-group" data-group-new aria-expanded="false" aria-controls="projectGroupCreate" title="新建分组">${I.plus}<span>新建分组</span></button><button class="rail-cta project-new-button" data-action="new-project-page" title="新建项目">${I.project}<span>新建项目</span></button></div>
+      ${window.PMProjectGroups.toolbarHTML()}
       <div class="project-search-row"><input class="input" id="projectSearch" aria-label="搜索项目" placeholder="搜索项目名称、描述…" value="${esc(view.projectQuery)}" autocomplete="off" />
       <div class="project-filter-controls">
         <div class="project-filter-control"><span class="project-filter-label" id="projectStatusLabel">项目状态</span><button class="select drop-trigger" data-drop="project-status" aria-labelledby="projectStatusLabel" aria-haspopup="listbox" aria-expanded="false" title="项目状态"><span data-drop-label>${esc(PROJECT_FILTERS.find((x) => x.key === view.projectFilter).label)}</span>${I.down}</button></div>
         <div class="project-filter-control"><span class="project-filter-label" id="projectLayoutLabel">视图</span><button class="select drop-trigger" data-drop="project-layout" aria-labelledby="projectLayoutLabel" aria-haspopup="listbox" aria-expanded="false" title="视图"><span data-drop-label>${view.projectLayout === 'cards' ? '卡片' : '紧凑列表'}</span>${I.down}</button></div>
+        <div class="project-filter-control"><span class="project-filter-label">画布</span>${viewModeHTML('canvas-view', S.state.settings.canvasView)}</div>
       </div></div>
-      <div class="project-canvas-tools" id="projectCanvasTools" role="toolbar" aria-label="项目画布操作" hidden></div>
-      ${window.PMProjectGroups.toolbarHTML()}
     </div><div class="project-results ${view.projectLayout}" id="projectResults">${projectResultsHTML()}</div>`;
   };
 
@@ -749,6 +765,7 @@
   }
   async function openProjectTree(id) {
     if (!S.state.projects.some((p) => p.id === id)) return;
+    if (view.projectCreating && editingGuard()) return;
     closeDropMenu();
     dismissDrawer();
     view.detailProjectId = id;
@@ -776,10 +793,18 @@
   function renderDetail() {
     DAG.detach(detailBody);
     const project = S.state.projects.find((p) => p.id === view.detailProjectId);
-    const tools = $('projectCanvasTools');
-    if (tools) {
-      tools.hidden = !project;
-      tools.innerHTML = project ? `<button class="btn tiny" data-ai-work="review" data-project-id="${esc(project.id)}">✦ AI 建议</button>${viewModeHTML('canvas-view', S.state.settings.canvasView)}` : '';
+    const mode = panelBody.querySelector('[data-drop="canvas-view"]');
+    if (mode) {
+      mode.disabled = view.projectCreating;
+      mode.dataset.value = S.state.settings.canvasView;
+      mode.querySelector('[data-drop-label]').textContent = S.state.settings.canvasView === 'simple' ? '简洁' : '详细';
+    }
+    if (view.projectCreating) {
+      detailPanel.setAttribute('aria-label', '新建项目');
+      if (!detailBody.querySelector('.project-create-view')) {
+        detailBody.innerHTML = `<div class="project-create-view"><div class="project-create-form"><header class="project-create-heading"><h2>新建项目</h2><p>从一个目标开始，逐步安排任务。</p></header>${projectFormHTML(null)}</div></div>`;
+      }
+      return;
     }
     detailPanel.setAttribute('aria-label', project ? `${project.name} · 项目任务画布` : '项目任务画布');
     if (!project) {
@@ -859,7 +884,7 @@
   VIEWS.board = function () {
     const list = boardTasks();
     return `${boardToolsHTML()}
-      <div class="board" id="boardGrid">${boardColsHTML(list)}</div>`;
+      ${S.state.settings.boardLayout === 'timeline' ? `<div class="board-timeline" id="boardTimeline">${window.PMTimeline.html(list, view.timelineStart)}</div>` : `<div class="board" id="boardGrid">${boardColsHTML(list)}</div>`}`;
   };
 
   function boardColsHTML(list) {
@@ -867,24 +892,36 @@
   }
 
   function boardToolsHTML() {
+    const layout = S.state.settings.boardLayout === 'timeline' ? 'timeline' : 'board';
     return `<div class="board-tools">
+      <div class="board-view-tabs" role="group" aria-label="任务视图">
       <button class="select drop-trigger" data-drop="scope" data-value="${esc(S.state.activeProjectId)}"
         role="combobox" aria-haspopup="listbox" aria-expanded="false" title="项目筛选">
         <span data-drop-label>${esc(currentProjectName())}</span></button>
-      <span class="board-view-title">${I.board}<span>任务看板</span></span>
-      <input class="input" id="boardSearch" placeholder="搜索任务…" autocomplete="off" value="${esc(view.boardQuery)}" />
-      <button class="select drop-trigger" data-drop="board-sort" data-value="${esc(view.boardSort)}"
+      <button class="board-view-title" data-action="board-layout" data-value="board" aria-pressed="${layout === 'board'}">${I.board}<span>任务看板</span></button>
+      <button class="board-view-title" data-action="board-layout" data-value="timeline" aria-pressed="${layout === 'timeline'}">${I.timeline}<span>甘特时间线</span></button></div>
+      <input class="input" id="boardSearch" aria-label="搜索任务" placeholder="搜索任务…" autocomplete="off" value="${esc(view.boardQuery)}" />
+      <div class="board-tools-actions">
+      ${layout === 'board' ? `<button class="select drop-trigger" data-drop="board-sort" data-value="${esc(view.boardSort)}"
         role="combobox" aria-haspopup="listbox" aria-expanded="false" title="排序">
-        <span data-drop-label>${esc((SORTS.find((x) => x.key === view.boardSort) || SORTS[0]).label)}</span></button>
-      ${viewModeHTML('board-view', S.state.settings.boardView || 'simple')}
+        <span data-drop-label>${esc((SORTS.find((x) => x.key === view.boardSort) || SORTS[0]).label)}</span></button>` : '<span class="timeline-sort-label">按截止日期</span>'}
+      ${layout === 'board' ? viewModeHTML('board-view', S.state.settings.boardView || 'simple') : ''}
       <button class="btn primary board-new-task" data-action="new-task">新建 ${I.plus}</button>
-    </div>`;
+    </div></div>`;
+  }
+
+  function refreshBoardContent() {
+    const grid = $('boardGrid');
+    if (grid) grid.innerHTML = boardColsHTML(boardTasks());
+    const timeline = $('boardTimeline');
+    if (timeline) timeline.innerHTML = window.PMTimeline.html(boardTasks(), view.timelineStart);
   }
 
   function colHTML(bucket, items) {
     const size = view.boardSize;
     const pages = Math.max(1, Math.ceil(items.length / size));
     const page = Math.min(view.boardPage[bucket.key] || 0, pages - 1);
+    view.boardPage[bucket.key] = page;
     const slice = items.slice(page * size, page * size + size);
 
     return `<div class="col" data-bucket="${bucket.key}">
@@ -914,10 +951,10 @@
       }).join('') : `<div class="empty" style="padding:14px 4px">空</div>`}
       </div>
       <button class="board-add-task" data-action="new-task" aria-label="新建任务">${I.plus}<span>新页面</span></button>
-      ${pages > 1 ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px">
-        <button class="btn tiny ghost" data-action="board-page" data-col="${bucket.key}" data-dir="-1">‹</button>
-        <span style="font-size:10px;color:var(--dim)">${page + 1}/${pages}</span>
-        <button class="btn tiny ghost" data-action="board-page" data-col="${bucket.key}" data-dir="1">›</button>
+      ${pages > 1 ? `<div class="board-pagination" role="group" aria-label="${bucket.label}分页" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px">
+        <button class="btn tiny ghost" data-action="board-page" data-col="${bucket.key}" data-dir="-1" aria-label="${bucket.label}上一页" ${page === 0 ? 'disabled' : ''}>‹</button>
+        <span style="font-size:10px;color:var(--dim)" aria-live="polite">${page + 1}/${pages}</span>
+        <button class="btn tiny ghost" data-action="board-page" data-col="${bucket.key}" data-dir="1" aria-label="${bucket.label}下一页" ${page === pages - 1 ? 'disabled' : ''}>›</button>
       </div>` : ''}
     </div>`;
   }
@@ -1311,8 +1348,8 @@
    * 表单宿主：新建/编辑任务与项目都是"页面"，表单渲染在右侧展开区里
    * （.sheet 居中弹层保留给个别小确认场景）
    * ================================================================ */
-  let sheetMode = 'module';                 // module=第二栏 | detail=第三栏 | sheet=弹层
-  const formHost = () => (sheetMode === 'sheet' ? sheet : sheetMode === 'detail' ? $('taskDrawer') : panelBody);
+  let sheetMode = 'module';                 // module=主面板 | canvas=项目画布 | detail=详情抽屉 | sheet=弹层
+  const formHost = () => (sheetMode === 'sheet' ? sheet : sheetMode === 'canvas' ? detailBody : sheetMode === 'detail' ? $('taskDrawer') : panelBody);
   const $q = (sel) => formHost().querySelector(sel);
   const $qa = (sel) => formHost().querySelectorAll(sel);
 
@@ -1329,6 +1366,13 @@
   }
 
   function closeSheet() {
+    if (sheetMode === 'canvas') {
+      view.projectCreating = false; sheetMode = 'module'; editingProjectId = null;
+      if (restorePendingTask()) return;
+      pendingProjectForTask = false;
+      renderDetail(); panelBody.querySelector('[data-action="new-project-page"]')?.focus();
+      return;
+    }
     if (sheetMode === 'detail') {
       editingProjectId = null;
       dismissDrawer();
@@ -1422,6 +1466,7 @@
   let draftDependencies = [];
   let taskEditorBaseline = null;
   let pendingProjectForTask = false;   // 从任务表单里点「新建项目」时置位
+  let pendingTaskDraft = null;
 
   function taskParentsHTML(task) {
     const ids = G.dependencies(task);
@@ -1446,13 +1491,14 @@
       tags: draftTags, subtasks: draftSubtasks, pendingSubtask: $q('#f-sub-input').value, pendingTag: $q('#f-tag-input').value });
   }
   function openTaskSheet(id, options = {}) {
+    if (view.projectCreating) { toast('请先保存或取消正在创建的项目'); return; }
     if (!taskDrawerMask.hidden && editingTaskId) window.PMAI.editorClosed(editingTaskId);
     editingProjectId = null;
     editingTaskId = id || null;
     const t = id ? S.state.tasks.find((x) => x.id === id) : null;
     draftTags = t ? (t.tags || []).slice() : [];
     draftSubtasks = t ? (t.subtasks || []).map((x) => ({ ...x })) : [];
-    draftProjectId = t ? t.projectId : ((S.state.activeModule === 'calendar' ? '' : view.detailProjectId) || (S.state.activeProjectId !== 'all' ? S.state.activeProjectId : (S.projects()[0] || {}).id || ''));
+    draftProjectId = t ? t.projectId : ((S.state.activeModule === 'projects' ? view.detailProjectId : '') || (S.state.activeProjectId !== 'all' ? S.state.activeProjectId : (S.projects()[0] || {}).id || ''));
     draftDependencies = t ? G.dependencies(t) : [];
     const focusForm = () => {
       // 用草稿替换标签/子任务的初始渲染状态
@@ -1486,6 +1532,32 @@
     DAG.select(detailBody, null);
     sheetMode = 'module';
     if (drawerReturnFocus?.isConnected) drawerReturnFocus.focus({ preventScroll: true });
+  }
+
+  function restorePendingTask(project) {
+    if (!pendingProjectForTask || !pendingTaskDraft) return false;
+    const draft = pendingTaskDraft;
+    pendingTaskDraft = null; pendingProjectForTask = false;
+    S.state.activeModule = draft.module; ensureWorkspaceTab(); S.save();
+    renderRail(); render(); openTaskSheet(draft.taskId, { due: draft.due });
+    draftProjectId = project?.id || draft.projectId;
+    draftDependencies = project ? [] : draft.dependencies;
+    draftTags = draft.tags; draftSubtasks = draft.subtasks;
+    $q('#f-title').value = draft.title; $q('#f-due').value = draft.due;
+    $q('#f-notes').value = draft.notes; $q('#f-sub-input').value = draft.pendingSubtask;
+    const projectButton = $q('[data-drop="task-project"]');
+    if (projectButton) { projectButton.dataset.value = draftProjectId; projectButton.querySelector('[data-drop-label]').textContent = projectNameOf(draftProjectId); }
+    $('taskDrawerHead').querySelector('.ph-title p').textContent = projectNameOf(draftProjectId);
+    setTaskChoice('priority', draft.priority, PRIORITY);
+    setTaskChoice('reminder', draft.reminder.mode, R.MODES);
+    $q('#f-reminder-at').value = draft.reminder.at;
+    if (draft.pendingTag) {
+      $q('#f-tag-input').value = draft.pendingTag; $q('#f-tag-input').hidden = false; $q('#f-newtag').hidden = true;
+    }
+    syncTagChips($q('#f-tags')); renderDraftSubs(); refreshTaskParents(); refreshReminderField();
+    taskEditorBaseline = draft.baseline;
+    $q('#f-title').focus();
+    return true;
   }
 
   function closeTagEntry(restoreFocus = false) {
@@ -1619,7 +1691,7 @@
           ${colors.map((c) => `<button class="swatch" data-color="${c}" aria-pressed="${proj.color === c}" style="background:${c}"></button>`).join('')}
         </div>
       </div>
-      <div class="field"><label for="p-group">项目分组</label><select class="select" id="p-group"><option value="">未分组</option>${S.state.projectGroups.map(g => `<option value="${esc(g.id)}" ${proj.groupId === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
+      <div class="field"><label for="p-group">项目分组</label><select class="select" id="p-group"><option value="">默认分组</option>${S.state.projectGroups.map(g => `<option value="${esc(g.id)}" ${proj.groupId === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
       <div class="sheet-foot">
         ${!isNew ? `<button class="btn tiny danger" data-action="delete-project" data-id="${proj.id}">${I.trash}<span>删除项目</span></button>` : ''}
         <span class="sp"></span>
@@ -1631,32 +1703,17 @@
   let draftColor = ACCENTS[0];
   let editingProjectId = null;
 
-  /**
-   * 打开一个表单页（新建/编辑任务、新建/编辑项目）。
-   * 独立项目表单使用主工作区，任务详情使用右侧抽屉。
-   */
-  function openFormPageFor(moduleKey, renderForm) {
-    resetDetail();
-    sheetMode = 'module';
-    S.state.activeModule = moduleKey;
-    S.save();
-    renderRail();
-    render();
-    markRebuild();
-    renderForm();
-    return Promise.resolve();
-  }
-
-  /** 新建项目使用独立页面；现有项目在右侧详情栏编辑。 */
+  /** 新建表单替换右侧画布，保留项目导航；现有项目使用详情抽屉。 */
   function openProjectPage(id) {
     if (id) return openProjectEditor(id);
-    editingProjectId = id || null;
-    const p = id ? S.state.projects.find((x) => x.id === id) : null;
-    draftColor = p ? p.color : ACCENTS[0];
-    return openFormPageFor('project', () => {
-      const i = $q('#p-name');
-      if (i) { i.focus(); i.select(); }
-    });
+    if (!pendingProjectForTask && editingGuard()) return;
+    dismissDrawer();
+    editingProjectId = null; draftColor = ACCENTS[0];
+    view.projectCreating = true; sheetMode = 'canvas';
+    S.state.activeModule = 'projects'; ensureWorkspaceTab('projects'); S.save();
+    renderRail(); render();
+    $q('#p-name')?.focus();
+    return Promise.resolve();
   }
 
   function openProjectEditor(id) {
@@ -1712,6 +1769,7 @@
         : ['board-view', 'canvas-view'].includes(kind) ? [{ label: '详细', value: 'detailed', selected: cur === 'detailed', action: kind }, { label: '简洁', value: 'simple', selected: cur === 'simple', action: kind }]
         : kind === 'project-status' ? projectFilterRows()
         : kind === 'project-layout' ? projectLayoutRows()
+        : kind === 'project-group' ? [{ id: '', name: '默认分组' }, ...S.state.projectGroups].map(group => ({ label: group.name, value: group.id, selected: cur === group.id, action: 'project-move' }))
         : kind === 'task-reminder' ? Object.entries(R.MODES).map(([value, item]) => ({ label: item.label, value, selected: cur === value, action: 'task-reminder' }))
         : kind === 'task-priority' ? Object.entries(PRIORITY).map(([value, item]) => ({ label: item.label, value, selected: cur === value, action: 'task-priority' }))
         : kind === 'task-project' ? taskProjectDropRows(cur)
@@ -1725,6 +1783,16 @@
     if (actionEl) {
       const a = actionEl.dataset.action;
       switch (a) {
+        case 'board-layout': {
+          if (!['board', 'timeline'].includes(actionEl.dataset.value)) return;
+          S.state.settings.boardLayout = actionEl.dataset.value; S.save(); render(); return;
+        }
+        case 'timeline-move': {
+          view.timelineStart = window.PMTimeline.shift(actionEl.dataset.start, Number(actionEl.dataset.dir) * 28);
+          refreshBoardContent(); return;
+        }
+        case 'timeline-today': { view.timelineStart = window.PMTimeline.shift(day(0), -7); refreshBoardContent(); return; }
+        case 'timeline-date': { view.timelineStart = window.PMTimeline.shift(actionEl.dataset.date, -7); refreshBoardContent(); return; }
         case 'toggle-board-view': toggleBoardView(); return;
         case 'calendar-view': setCalendarView(actionEl.dataset.value); return;
         case 'tree-new-task': openTaskSheet(null); return;
@@ -1785,6 +1853,7 @@
         case 'save-task': saveTaskFromSheet(actionEl.dataset.id || null); return;
         case 'save-project': {
           const inSidebar = sheetMode === 'detail';
+          const inCanvas = sheetMode === 'canvas';
           const name = ($q('#p-name').value || '').trim();
           if (!name) { toast('请填写项目名称'); return; }
           const desc = ($q('#p-desc').value || '').trim();
@@ -1795,19 +1864,15 @@
           else created = S.addProject({ name, desc, groupId, color: draftColor });
           S.save();
           toast(id ? '项目已更新' : '项目已创建');
-          // 从任务表单里新建的项目：回到任务编辑并自动选中
-          if (created && pendingProjectForTask) {
-            pendingProjectForTask = false;
-            openTaskSheet(editingTaskId);
-            const btn = $q('[data-drop="task-project"]');
-            if (btn) {
-              draftProjectId = created.id;
-              btn.dataset.value = created.id;
-              const label = btn.querySelector('[data-drop-label]');
-              if (label) label.textContent = created.name;
-            }
-            return;
+          if (inCanvas) { view.projectCreating = false; sheetMode = 'module'; }
+          if (created) { view.detailProjectId = created.id; S.state.workspaceProjectId = created.id; }
+          if (created) {
+            const group = S.state.projectGroups.find(item => item.id === created.groupId);
+            if (group) group.collapsed = false;
+            else S.state.settings.ungroupedCollapsed = false;
           }
+          // 从任务表单里新建的项目：回到任务编辑并自动选中
+          if (created && restorePendingTask(created)) return;
           editingProjectId = null;
           if (inSidebar) dismissDrawer();
           S.state.activeModule = 'projects';
@@ -1853,10 +1918,11 @@
         case 'board-page': {
           const col = actionEl.dataset.col;
           const dir = Number(actionEl.dataset.dir);
-          const items = S.tasksIn().filter((t) => t.status === col);
+          if (!BUCKETS.some(bucket => bucket.key === col) || ![-1, 1].includes(dir)) return;
+          const items = boardTasks().filter((t) => bucketOf(t) === col);
           const pages = Math.max(1, Math.ceil(items.length / view.boardSize));
           view.boardPage[col] = Math.min(pages - 1, Math.max(0, (view.boardPage[col] || 0) + dir));
-          render(); return;
+          refreshBoardContent(); return;
         }
         case 'cal-move': {
           const dir = Number(actionEl.dataset.dir);
@@ -1964,7 +2030,7 @@
   document.addEventListener('input', event => {
     if (event.target.id === 'f-due' || event.target.id === 'f-reminder-at') refreshReminderField();
   });
-  const formPageOpen = () => (['task', 'project'].includes(S.state.activeModule) && sheetMode === 'module') || sheetMode === 'detail';
+  const formPageOpen = () => (['task', 'project'].includes(S.state.activeModule) && sheetMode === 'module') || ['detail', 'canvas'].includes(sheetMode);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if ($q('#f-tag-input') && !$q('#f-tag-input').hidden) { e.preventDefault(); closeTagEntry(true); return; }

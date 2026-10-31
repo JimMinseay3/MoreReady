@@ -2,50 +2,59 @@
   'use strict';
   const S = window.PMStore;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let refresh, notify;
+  let refresh, notify, creating = false;
   function toolbarHTML() {
-    return `<details class="group-manager"><summary>管理分组 <span>＋</span></summary><div class="group-manager-body">
-      <form data-group-create><input class="input" name="name" maxlength="40" placeholder="新分组名称" aria-label="新分组名称" required /><button class="btn tiny" type="submit">新建</button></form>
-      ${S.state.projectGroups.map(g => `<div class="group-manager-row"><input class="input" data-group-name="${esc(g.id)}" value="${esc(g.name)}" maxlength="40" aria-label="分组名称" /><button class="icon-btn" data-group-save="${esc(g.id)}" title="保存分组名称" aria-label="保存分组名称">✓</button><button class="icon-btn" data-group-remove="${esc(g.id)}" title="移除分组，项目保留在未分组" aria-label="移除分组">×</button></div>`).join('')}
-      </div></details>`;
+    return `<form class="project-group-create" id="projectGroupCreate" data-group-create ${creating ? '' : 'hidden'}><input class="input" name="name" maxlength="40" placeholder="分组名称" aria-label="新分组名称" required /><button class="btn tiny" type="submit">创建</button><button class="icon-btn" type="button" data-group-cancel aria-label="取消新建分组">×</button></form>`;
   }
   function resultsHTML(list, cards) {
-    if (!S.state.projectGroups.length) return [...cards.values()].join('');
-    const groups = [...S.state.projectGroups, { id: '', name: '未分组', collapsed: S.state.settings.ungroupedCollapsed }];
+    const groups = [{ id: '', name: '默认分组', collapsed: S.state.settings.ungroupedCollapsed }, ...S.state.projectGroups];
+    const filtered = list.length < S.projects(true).length;
     return groups.map(g => {
       const items = list.filter(p => (p.groupId || '') === g.id);
-      return `<section class="project-group" data-group-drop="${esc(g.id)}"><button class="project-group-head" data-group-toggle="${esc(g.id)}" aria-expanded="${!g.collapsed}"><span class="group-chevron">${g.collapsed ? '›' : '⌄'}</span><b>${esc(g.name)}</b><span>${items.length}</span></button><div class="project-group-projects" ${g.collapsed ? 'hidden' : ''}>${items.map(p => cards.get(p.id)).join('') || '<p class="group-empty">拖入项目或在项目详情中选择分组</p>'}</div></section>`;
+      if (filtered && !items.length) return '';
+      return `<section class="project-group" data-group-drop="${esc(g.id)}"><button class="project-group-head" data-group-toggle="${esc(g.id)}" aria-expanded="${!g.collapsed}"><span class="group-chevron">${g.collapsed ? '›' : '⌄'}</span><b>${esc(g.name)}</b><span>${items.length}</span></button><div class="project-group-projects" ${g.collapsed ? 'hidden' : ''}>${items.map(p => cards.get(p.id)).join('') || '<p class="group-empty">暂无项目</p>'}</div></section>`;
     }).join('');
+  }
+  function showCreator(open) {
+    creating = open;
+    const form = document.querySelector('[data-group-create]');
+    if (form) { form.hidden = !open; if (open) form.elements.name.focus(); else form.reset(); }
+    const button = document.querySelector('[data-group-new]');
+    button?.setAttribute('aria-expanded', String(open));
+    if (!open) button?.focus({ preventScroll: true });
   }
   function init(options) {
     refresh = options.refresh; notify = options.notify;
-    const update = () => {
-      refresh();
-      const manager = document.querySelector('.group-manager');
-      if (manager) { const open = manager.open; manager.outerHTML = toolbarHTML(); document.querySelector('.group-manager').open = open; }
-    };
     document.addEventListener('submit', e => {
       if (!e.target.matches('[data-group-create]')) return;
       e.preventDefault();
-      try { S.addProjectGroup(new FormData(e.target).get('name')); update(); } catch (error) { notify(error.message); }
+      try {
+        const group = S.addProjectGroup(new FormData(e.target).get('name'));
+        const select = document.getElementById('p-group');
+        if (select) select.add(new Option(group.name, group.id));
+        showCreator(false); refresh(); notify('分组已创建');
+      } catch (error) { notify(error.message); }
     });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && e.target.closest('[data-group-create]')) {
+        e.preventDefault(); e.stopImmediatePropagation(); showCreator(false);
+      }
+    }, true);
     document.addEventListener('click', e => {
+      if (e.target.closest('[data-group-new]')) { showCreator(!creating); return; }
+      if (e.target.closest('[data-group-cancel]')) { showCreator(false); return; }
       const toggle = e.target.closest('[data-group-toggle]');
       if (toggle) {
         const id = toggle.dataset.groupToggle, group = S.state.projectGroups.find(g => g.id === id);
         if (group) group.collapsed = !group.collapsed;
         else S.state.settings.ungroupedCollapsed = !S.state.settings.ungroupedCollapsed;
-        S.save(); refresh(); return;
+        S.save(); refresh();
+        [...document.querySelectorAll('[data-group-toggle]')].find(button => button.dataset.groupToggle === id)?.focus({ preventScroll: true });
       }
-      const save = e.target.closest('[data-group-save]'), remove = e.target.closest('[data-group-remove]');
-      try {
-        if (save) { const id = save.dataset.groupSave; S.renameProjectGroup(id, [...document.querySelectorAll('[data-group-name]')].find(el => el.dataset.groupName === id).value); update(); }
-        if (remove) { S.removeProjectGroup(remove.dataset.groupRemove); update(); notify('分组已移除，项目已保留在未分组'); }
-      } catch (error) { notify(error.message); }
     });
     document.addEventListener('dragstart', e => {
       const card = e.target.closest('[data-open-project]');
-      if (!card) return;
+      if (!card || e.target.closest('button')) return;
       e.dataTransfer.setData('application/x-moreready-project', card.dataset.openProject); e.dataTransfer.effectAllowed = 'move';
     });
     document.addEventListener('dragover', e => {

@@ -44,7 +44,7 @@ const { createPreviewServer } = require('./web-preview');
     assert.equal(await page.locator('.project-filter-summary').count(), 0);
     assert.equal(await page.locator('#panelHead').evaluate(el => el.getBoundingClientRect().height), 56);
     assert.equal(await page.locator('#detailHead').count(), 0);
-    assert.equal(await page.locator('#projectCanvasTools [data-ai-work="review"]').isVisible(), true);
+    assert.equal(await page.locator('#projectCanvasTools, .project-toolbar [data-ai-work="review"]').count(), 0);
     assert.ok(await page.evaluate(() => document.querySelector('.project-new-button').getBoundingClientRect().bottom < document.querySelector('#projectSearch').getBoundingClientRect().top));
     const navOrder = await page.locator('[data-nav]').evaluateAll(els => els.map(el => el.dataset.nav));
     assert.equal(navOrder[navOrder.indexOf('about') - 1], 'extensions');

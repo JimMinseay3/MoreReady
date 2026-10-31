@@ -1,0 +1,197 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { chromium } = require('playwright');
+const { createPreviewServer } = require('./web-preview');
+const { createAIService } = require('../src/ai-service');
+
+(async () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'moreready-workspace-'));
+  const ai = createAIService({ configFile: path.join(temp, 'ai.json') });
+  ai.save({ baseURL: 'https://example.com/v1', model: 'claude-test-model', apiKey: 'isolated-test-key', providerId: 'custom' });
+  const server = createPreviewServer(undefined, { aiService: ai });
+  let browser;
+  try {
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1475, height: 884 }, colorScheme: 'light' });
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}`);
+    await page.waitForSelector('.graph-node');
+    await page.reload(); await page.waitForSelector('.graph-node');
+    const geometry = async () => page.evaluate(() => {
+      const rect = selector => document.querySelector(selector).getBoundingClientRect().toJSON();
+      return { rail: rect('#rail'), tabs: rect('#desktopTitlebar'), workspace: rect('.desktop-workspace'), controls: rect('.desktop-window-controls'), width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth };
+    });
+    const verifyShell = async () => {
+      const g = await geometry();
+      assert.equal(g.rail.top, 0); assert.equal(g.rail.bottom, g.height);
+      assert.ok(Math.abs(g.rail.right - g.tabs.left) < 1);
+      assert.equal(g.tabs.top, 0); assert.equal(g.workspace.top, g.tabs.bottom);
+      assert.ok(Math.abs(g.controls.right - g.width) < 1); assert.equal(g.scrollWidth, g.width);
+    };
+    await verifyShell();
+    assert.equal(await page.locator('#projectCanvasTools, .group-manager, .project-toolbar [data-ai-work]').count(), 0);
+    assert.equal(await page.locator('[data-group-drop=""] .project-card').count(), 4);
+    assert.equal(await page.locator('[data-group-toggle=""] b').innerText(), '默认分组');
+    assert.ok(await page.locator('.project-filter-controls').evaluate(el => {
+      const boxes = [...el.children].map(n => n.getBoundingClientRect());
+      return boxes.length === 3 && boxes.every(box => Math.abs(box.top - boxes[0].top) < 1);
+    }));
+    const tasksBefore = await page.evaluate(() => JSON.parse(JSON.stringify(window.PMStore.state.tasks)));
+    const website = page.locator('[data-open-project="p-website"]');
+    await page.mouse.move(1400, 800);
+    assert.equal(await website.locator('.project-card-actions').evaluate(el => getComputedStyle(el).opacity), '0');
+    await website.hover();
+    assert.equal(await website.locator('.project-card-actions').evaluate(el => getComputedStyle(el).opacity), '1');
+    const createGroup = async name => {
+      await page.click('[data-group-new]'); await page.fill('[data-group-create] [name="name"]', name);
+      await page.click('[data-group-create] [type="submit"]');
+      assert.equal(await page.locator('[data-group-create]').isHidden(), true);
+    };
+    await createGroup('产品交付');
+    const group = await page.evaluate(() => window.PMStore.state.projectGroups[0].id);
+    await website.hover(); await website.locator('[data-drop="project-group"]').click();
+    await page.click(`.drop-item[data-drop-action="project-move"][data-value="${group}"]`);
+    assert.equal(await page.locator(`[data-group-drop="${group}"] .project-card`).count(), 1);
+    await page.locator('[data-open-project="p-app"]').dragTo(page.locator(`[data-group-drop="${group}"] .project-group-head`));
+    assert.equal(await page.locator(`[data-group-drop="${group}"] .project-card`).count(), 2);
+    await page.click(`[data-group-toggle="${group}"]`);
+    await page.reload(); await page.waitForSelector('.project-group');
+    assert.equal(await page.locator(`[data-group-drop="${group}"] .project-group-projects`).isHidden(), true);
+    await page.click(`[data-group-toggle="${group}"]`);
+    await website.hover(); await website.locator('[data-drop="project-group"]').click();
+    await page.click('.drop-item[data-drop-action="project-move"][data-value=""]');
+    assert.equal(await page.locator('[data-group-drop=""] [data-open-project="p-website"]').count(), 1);
+    await page.screenshot({ path: path.resolve('shots/workspace-project-groups-20261028.png') });
+    await page.click('[data-action="new-project-page"]');
+    assert.equal(await page.evaluate(() => window.PMStore.state.activeModule), 'projects');
+    assert.equal(await page.locator('#detailBody #p-name').isVisible(), true);
+    assert.equal(await page.locator('#projectResults .project-card').count(), 4);
+    await page.fill('#p-name', '保留的新建草稿'); await page.fill('#p-desc', '画布内创建');
+    await createGroup('日常工作');
+    assert.equal(await page.inputValue('#p-name'), '保留的新建草稿');
+    await page.click('[data-drop="project-layout"]'); await page.click('.drop-item[data-value="compact"]');
+    assert.equal(await page.inputValue('#p-name'), '保留的新建草稿');
+    await page.click('[data-nav="board"]');
+    assert.equal(await page.inputValue('#p-name'), '保留的新建草稿');
+    await page.screenshot({ path: path.resolve('shots/workspace-project-create-20261028.png') });
+    await page.click('[data-action="sheet-cancel"]'); await page.waitForSelector('.graph-node');
+    assert.equal(await page.locator('#projectResults .project-card').count(), 4);
+    await page.click('[data-action="new-project-page"]');
+    await page.click('[data-action="save-project"]');
+    assert.equal(await page.locator('#p-name').isVisible(), true);
+    await page.fill('#p-name', '默认分组新项目'); await page.keyboard.press('Control+Enter');
+    await page.waitForFunction(() => !document.querySelector('#p-name'));
+    const created = await page.evaluate(() => window.PMStore.state.projects.find(project => project.name === '默认分组新项目'));
+    assert.equal(created.groupId, '');
+    assert.equal(await page.locator(`[data-group-drop=""] [data-open-project="${created.id}"]`).count(), 1);
+    assert.equal(await page.locator(`[data-open-project="${created.id}"]`).getAttribute('aria-pressed'), 'true');
+    assert.deepEqual(await page.evaluate(() => window.PMStore.state.tasks), tasksBefore);
+    // Returning from inline project creation must retain the new task's draft.
+    await page.click('[data-action="tree-new-task"]');
+    await page.fill('#f-title', '保留任务的标题'); await page.fill('#f-notes', '保留任务的备注');
+    await page.fill('#f-sub-input', '子任务草稿');
+    await page.click('[data-drop="task-project"]'); await page.click('.drop-item[data-drop-action="new-project-inline"]');
+    await page.fill('#p-name', '取消的项目草稿'); await page.click('[data-action="sheet-cancel"]');
+    assert.equal(await page.inputValue('#f-title'), '保留任务的标题');
+    assert.equal(await page.inputValue('#f-notes'), '保留任务的备注');
+    assert.equal(await page.inputValue('#f-sub-input'), '子任务草稿');
+    await page.click('[data-drop="task-project"]'); await page.click('.drop-item[data-drop-action="new-project-inline"]');
+    await page.fill('#p-name', '为任务创建的新项目'); await page.click('[data-action="save-project"]');
+    assert.equal(await page.inputValue('#f-title'), '保留任务的标题');
+    assert.match(await page.locator('[data-drop="task-project"]').innerText(), /为任务创建的新项目/);
+    await page.keyboard.press('Escape');
+    assert.deepEqual(await page.evaluate(() => window.PMStore.state.tasks), tasksBefore);
+
+    await page.evaluate(() => {
+      const S = window.PMStore, C = window.PMConst;
+      for (let i = 0; i < 14; i++) S.addTask({ title: `分页验收 ${String(i).padStart(2, '0')}`, projectId: 'p-website', due: C.day(-i - 1), status: i % 2 ? 'waiting' : 'todo', priority: 'p2' });
+      S.addTask({ title: '远期排期', projectId: 'p-website', due: '2030-06-15', status: 'todo', priority: 'p2' });
+      S.addTask({ title: '待安排日期', projectId: 'p-website', due: '', status: 'todo', priority: 'p2' });
+    });
+    await page.click('[data-nav="board"]');
+    const verifySearchCenter = async () => {
+      assert.ok(await page.locator('#boardSearch').evaluate(el => {
+        const box = el.getBoundingClientRect(), toolbar = el.closest('.board-tools').getBoundingClientRect();
+        return Math.abs((box.left + box.right) / 2 - (toolbar.left + toolbar.right) / 2) < 1;
+      }), 'search must stay horizontally centered within its toolbar');
+    };
+    await verifySearchCenter();
+    await page.fill('#boardSearch', '分页验收');
+    const bucket = page.locator('[data-bucket="expired"]');
+    const visibleIds = () => bucket.locator('.mini').evaluateAll(nodes => nodes.map(n => n.dataset.task));
+    const firstPage = await visibleIds(); assert.equal(firstPage.length, 6);
+    const next = bucket.locator('[data-action="board-page"][data-dir="1"]');
+    const prev = bucket.locator('[data-action="board-page"][data-dir="-1"]');
+    assert.equal(await prev.isDisabled(), true);
+    await next.click();
+    const secondPage = await visibleIds(); assert.equal(secondPage.length, 6);
+    assert.ok(secondPage.every(id => !firstPage.includes(id)));
+    await next.click(); assert.equal((await visibleIds()).length, 2); assert.equal(await next.isDisabled(), true);
+    await prev.click(); assert.deepEqual(await visibleIds(), secondPage);
+    await page.fill('#boardSearch', '分页验收 00'); assert.equal((await visibleIds()).length, 1);
+    await page.fill('#boardSearch', '分页验收'); assert.deepEqual(await visibleIds(), firstPage);
+    await page.fill('#boardSearch', '');
+    await page.click('[data-drop="scope"]'); await page.click('.drop-item[data-drop-action="scope"][data-value="p-website"]');
+    const snapshot = await page.evaluate(() => JSON.parse(JSON.stringify(window.PMStore.state.tasks)));
+    await page.click('[data-action="board-layout"][data-value="timeline"]');
+    assert.equal(await page.locator('[data-drop="board-sort"]').count(), 0, 'timeline rows follow due dates and must not expose an ineffective board sorting control');
+    assert.equal(await page.locator('.timeline-day').count(), 28);
+    assert.equal(await page.locator('[data-timeline-task]').count(), snapshot.filter(task => task.projectId === 'p-website').length);
+    const pending = page.locator('[data-timeline-task]').filter({ hasText: '待安排日期' });
+    assert.equal(await pending.locator('.timeline-milestone').count(), 0);
+    const marker = page.locator('.timeline-milestone').first();
+    const markerDate = await marker.getAttribute('data-date');
+    assert.ok(await marker.evaluate((el, date) => {
+      const cell = document.querySelector(`[data-timeline-day="${date}"]`).getBoundingClientRect(), box = el.getBoundingClientRect();
+      return box.left >= cell.left && box.right <= cell.right;
+    }, markerDate));
+    const initialDate = await page.locator('.timeline-day').first().getAttribute('data-timeline-day');
+    await page.click('[data-action="timeline-move"][data-dir="1"]');
+    assert.notEqual(await page.locator('.timeline-day').first().getAttribute('data-timeline-day'), initialDate);
+    await page.click('[data-action="timeline-move"][data-dir="-1"]');
+    assert.equal(await page.locator('.timeline-day').first().getAttribute('data-timeline-day'), initialDate);
+    await page.locator('[data-action="timeline-date"][data-date="2030-06-15"]').click();
+    assert.equal(await page.locator('.timeline-milestone[data-date="2030-06-15"]').count(), 1);
+    await page.click('[data-action="timeline-today"]');
+    await page.locator('.timeline-task-label > button').first().click();
+    assert.equal(await page.locator('#taskDrawerMask').isVisible(), true);
+    await page.fill('#f-title', '任务草稿不会被视图切换丢弃');
+    await page.click('[data-action="board-layout"][data-value="board"]');
+    assert.equal(await page.inputValue('#f-title'), '任务草稿不会被视图切换丢弃');
+    await page.keyboard.press('Escape');
+    await page.click('[data-action="board-layout"][data-value="timeline"]');
+    await page.fill('#boardSearch', '无匹配的内容'); assert.equal(await page.locator('[data-timeline-task]').count(), 0);
+    await page.fill('#boardSearch', '');
+    await page.reload(); await page.waitForSelector('.timeline-day');
+    assert.equal(await page.evaluate(() => window.PMStore.state.settings.boardLayout), 'timeline');
+    await verifySearchCenter(); await verifyShell();
+    await page.screenshot({ path: path.resolve('shots/workspace-timeline-20261028.png') });
+    for (const width of [1000, 700]) {
+      await page.setViewportSize({ width, height: 700 }); await verifyShell(); await verifySearchCenter();
+      assert.equal(await page.locator('.timeline-day').count(), 28);
+    }
+    assert.deepEqual(await page.evaluate(() => window.PMStore.state.tasks), snapshot);
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.screenshot({ path: path.resolve('shots/workspace-timeline-dark-narrow-20261028.png') });
+    await page.setViewportSize({ width: 1475, height: 884 });
+    await page.click('[data-nav="extensions"]');
+    assert.equal(await page.locator('.ai-provider-icon').filter({ hasText: /^[ODQSL]$/ }).count(), 0);
+    assert.equal(await page.locator('.ai-connected-model img[src$="claude-color.svg"]').count(), 1);
+    await page.waitForFunction(() => [...document.querySelectorAll('.ai-provider-icon img')].every(img => img.complete && img.naturalWidth > 0));
+    assert.ok(await page.locator('.ai-connected-section').evaluate(el => {
+      const box = el.getBoundingClientRect(), model = el.querySelector('.ai-connected-model').getBoundingClientRect(), list = document.querySelector('.ai-providers').getBoundingClientRect();
+      return box.bottom - model.bottom <= 14 && list.top - box.bottom <= 13;
+    }));
+    await page.screenshot({ path: path.resolve('shots/workspace-provider-icons-20261028.png') });
+    assert.deepEqual(errors, []);
+    console.log('PASS: full-height navigation and content tabs; inline project creation and draft guards; default/named groups, move menu and drag; board pagination with search and scope; centered search; dated/undated Gantt rows, date positioning, range navigation, persistence, editor and responsive themes; local brand logos. Isolated test profile, no live data or AI requests.');
+  } finally {
+    await browser?.close(); await server.stop();
+    const relative = path.relative(os.tmpdir(), temp);
+    if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) fs.rmSync(temp, { recursive: true, force: true });
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });

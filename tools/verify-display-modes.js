@@ -21,7 +21,7 @@ fs.mkdirSync(OUT, { recursive: true });
     const verifyCanvasFrame = async () => {
       assert.equal(await page.locator('#detailHead').count(), 0);
       assert.equal(await page.locator('.project-toolbar [data-drop="canvas-view"]').isVisible(), true);
-      assert.equal(await page.locator('#projectCanvasTools [data-ai-work="review"]').getAttribute('data-project-id'), 'p-website');
+      assert.equal(await page.locator('#projectCanvasTools, .project-toolbar [data-ai-work="review"]').count(), 0);
       assert.ok(await page.evaluate(() => {
         const frame = document.querySelector('#detailPanel').getBoundingClientRect();
         const canvas = document.querySelector('.dag-viewport').getBoundingClientRect();
@@ -115,7 +115,7 @@ fs.mkdirSync(OUT, { recursive: true });
     await page.screenshot({ path: path.join(OUT, 'stats-right-vertical-legend.png') });
     await page.click('[data-nav="projects"]');
     const project = page.locator('[data-open-project="p-website"]');
-    assert.deepEqual(await project.locator('.project-card-actions button').evaluateAll(nodes => nodes.map(n => n.dataset.action)), ['edit-project', 'archive-project', 'delete-project']);
+    assert.deepEqual(await project.locator('.project-card-actions button').evaluateAll(nodes => nodes.map(n => n.dataset.action || n.dataset.drop)), ['edit-project', 'project-group', 'archive-project', 'delete-project']);
     await project.locator('[data-action="archive-project"]').click();
     assert.equal(await page.locator('#taskDrawerMask').isHidden(), true);
     assert.equal(await page.evaluate(() => window.PMStore.state.projects.find(p => p.id === 'p-website').archived), true);

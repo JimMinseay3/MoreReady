@@ -1,12 +1,7 @@
-MoreReady v0.2.0 是 Windows 桌面项目与任务工作区的首个公开发行版。
+MoreReady v0.2.1
 
-- 项目管理、任务看板、日历、统计、回收站和 JSON 备份。
-- 任务依赖画布，支持连线、缩放、平移和任务详情。
-- 日历简约/详细视图；单击选择日期，双击按当天日期新建任务。
-- 可配置模型提供商的 Miss.MR，支持任务规划、拆解、依赖分析和建议；应用方案前可选择内容，并支持撤销。
-- 自定义主题、快捷键与鼠标侧键、系统提醒和开机启动设置。
-- 应用内检查、下载更新和重启安装，更新源为本仓库 GitHub Releases。
+- Dedicated release repository and in-app updates.
+- Full-height navigation, project groups and inline project creation.
+- Gantt timeline and board pagination fixes.
 
-下载安装 `MoreReady-Setup-0.2.0-x64.exe`，支持 Windows 10/11 x64。`latest.yml` 与 `.blockmap` 供应用更新使用，`SHA256SUMS.txt` 用于核对下载文件。
-
-本版本未配置 Windows 代码签名证书。AI 密钥需由使用者在应用内填写；项目数据和密钥均不包含在安装包中。
+Windows x64. Installer is currently unsigned.

@@ -24,13 +24,19 @@
   const promptIcon = name => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${promptIcons[name]}</svg>`;
   const assistantMark = '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 11c1-5 6-5 8-1 3-5 8-2 9 1M16 12l-6 13h11M8 15h.1M23 15h.1M10 7l2-1m8 1 2 1"/></svg>';
   const dockIcon = paths => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  function providerIcon(id) {
+    const files = { openai: 'openai.svg', deepseek: 'deepseek-color.svg', bailian: 'qwen-color.svg', siliconflow: 'siliconcloud-color.svg', ollama: 'ollama.svg', claude: 'claude-color.svg' };
+    if (!files[id]) return dockIcon('<path d="M8 3v4m8-4v4M6 7h12v3a6 6 0 0 1-12 0V7Zm6 9v5"/>');
+    const url = `icons/providers/${files[id]}`;
+    return ['openai', 'ollama'].includes(id) ? `<span class="ai-provider-logo mono" style="mask-image:url('${url}')"></span>` : `<img class="ai-provider-logo" src="${url}" alt="" />`;
+  }
   const providers = [
-    { id: 'openai', name: 'OpenAI', icon: 'O', caption: '官方接口', baseURL: 'https://api.openai.com/v1', description: '连接 OpenAI 的对话模型。', hint: '填写支持 Chat Completions 的模型名称，API 地址可自行调整。', docs: 'https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create' },
-    { id: 'deepseek', name: 'DeepSeek', icon: 'D', caption: '官方接口', baseURL: 'https://api.deepseek.com', description: '连接 DeepSeek 的对话模型。', hint: '填写 DeepSeek 提供的模型名称与对应 API 密钥。', docs: 'https://api-docs.deepseek.com/' },
-    { id: 'bailian', name: '阿里云百炼', icon: 'Q', caption: '通义千问与更多模型', baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', description: '通过百炼接入通义千问及平台支持的模型。', hint: '默认使用北京地域；其他地域或业务空间请填写与密钥配套的接口地址。', docs: 'https://help.aliyun.com/zh/model-studio/base-url' },
-    { id: 'siliconflow', name: '硅基流动', icon: 'S', caption: '多模型平台', baseURL: 'https://api.siliconflow.cn/v1', description: '连接硅基流动平台中的对话模型。', hint: '请填写模型广场中对应模型的完整名称。', docs: 'https://docs.siliconflow.cn/docs/userguide/capabilities/text-generation' },
-    { id: 'ollama', name: 'Ollama', icon: 'L', caption: '本地模型', baseURL: 'http://127.0.0.1:11434/v1', description: '连接本机运行的 Ollama 模型服务。', hint: '先启动本地服务，再填写已安装的模型名称；本地服务通常无需密钥。', docs: 'https://docs.ollama.com/api/openai-compatibility' },
-    { id: 'custom', name: '自定义 API', icon: '＋', caption: 'OpenAI 兼容接口', baseURL: '', description: '连接其他兼容 OpenAI 格式的模型服务。', hint: '填写服务提供方的接口地址，兼容 OpenAI Chat Completions 格式。', docs: '' },
+    { id: 'openai', name: 'OpenAI', caption: '官方接口', baseURL: 'https://api.openai.com/v1', description: '连接 OpenAI 的对话模型。', hint: '填写支持 Chat Completions 的模型名称，API 地址可自行调整。', docs: 'https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create' },
+    { id: 'deepseek', name: 'DeepSeek', caption: '官方接口', baseURL: 'https://api.deepseek.com', description: '连接 DeepSeek 的对话模型。', hint: '填写 DeepSeek 提供的模型名称与对应 API 密钥。', docs: 'https://api-docs.deepseek.com/' },
+    { id: 'bailian', name: '阿里云百炼', caption: '通义千问与更多模型', baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', description: '通过百炼接入通义千问及平台支持的模型。', hint: '默认使用北京地域；其他地域或业务空间请填写与密钥配套的接口地址。', docs: 'https://help.aliyun.com/zh/model-studio/base-url' },
+    { id: 'siliconflow', name: '硅基流动', caption: '多模型平台', baseURL: 'https://api.siliconflow.cn/v1', description: '连接硅基流动平台中的对话模型。', hint: '请填写模型广场中对应模型的完整名称。', docs: 'https://docs.siliconflow.cn/docs/userguide/capabilities/text-generation' },
+    { id: 'ollama', name: 'Ollama', caption: '本地模型', baseURL: 'http://127.0.0.1:11434/v1', description: '连接本机运行的 Ollama 模型服务。', hint: '先启动本地服务，再填写已安装的模型名称；本地服务通常无需密钥。', docs: 'https://docs.ollama.com/api/openai-compatibility' },
+    { id: 'custom', name: '自定义 API', caption: 'OpenAI 兼容接口', baseURL: '', description: '连接其他兼容 OpenAI 格式的模型服务。', hint: '填写服务提供方的接口地址，兼容 OpenAI Chat Completions 格式。', docs: '' },
   ];
   const providerDrafts = new Map();
   let selectedProvider = 'custom';
@@ -92,7 +98,8 @@
   function connectedHTML() {
     if (!metadata.baseURL || !metadata.model) return '<p class="ai-connected-empty">尚未连接模型</p>';
     const provider = providers.find(item => item.id === savedProvider());
-    return `<button class="ai-connected-model" type="button" data-ai-connected aria-controls="aiConfig" title="${esc(metadata.model)}"><span class="ai-provider-icon" aria-hidden="true">${provider.icon}</span><span><b>${esc(metadata.model)}</b><small>${provider.name} · ${metadata.configured ? '已配置' : '待连接'}</small></span><span class="ai-connection-dot ${metadata.configured ? 'ready' : ''}" aria-hidden="true"></span></button>`;
+    const modelBrand = /^claude/i.test(metadata.model) ? 'claude' : /^deepseek/i.test(metadata.model) ? 'deepseek' : /^qwen/i.test(metadata.model) ? 'bailian' : provider.id;
+    return `<button class="ai-connected-model" type="button" data-ai-connected aria-controls="aiConfig" title="${esc(metadata.model)}"><span class="ai-provider-icon" aria-hidden="true">${providerIcon(modelBrand)}</span><span><b>${esc(metadata.model)}</b><small>${provider.name} · ${metadata.configured ? '已配置' : '待连接'}</small></span><span class="ai-connection-dot ${metadata.configured ? 'ready' : ''}" aria-hidden="true"></span></button>`;
   }
   function renderConnected() {
     const node = document.getElementById('aiConnectedModels');
@@ -142,7 +149,7 @@
         <div class="ai-extension-tabs" role="tablist" aria-label="扩展类别">${[['plugins', '插件'], ['models', '模型']].map(([id, label]) => `<button id="aiTab-${id}" type="button" role="tab" data-extension-tab="${id}" aria-selected="${extensionTab === id}" aria-controls="aiPanel-${id}" tabindex="${extensionTab === id ? 0 : -1}">${label}</button>`).join('')}</div>
         <div class="ai-model-navigation" data-extension-panel="models" ${extensionTab !== 'models' ? 'hidden' : ''}>
           <section class="ai-connected-section" aria-labelledby="aiConnectedTitle"><h3 id="aiConnectedTitle">已连接</h3><div id="aiConnectedModels">${connectedHTML()}</div></section>
-          <nav class="ai-providers" aria-label="模型提供商"><h3>模型列表</h3><div class="ai-provider-list">${providers.map(item => `<button class="ai-provider" type="button" data-ai-provider="${item.id}" aria-pressed="${item.id === selectedProvider}" aria-controls="aiConfig"><span class="ai-provider-icon" aria-hidden="true">${item.icon}</span><span><b>${item.name}</b><small>${item.caption}</small></span><span class="ai-provider-check" aria-hidden="true">✓</span></button>`).join('')}</div></nav>
+          <nav class="ai-providers" aria-label="模型提供商"><h3>模型列表</h3><div class="ai-provider-list">${providers.map(item => `<button class="ai-provider" type="button" data-ai-provider="${item.id}" aria-pressed="${item.id === selectedProvider}" aria-controls="aiConfig"><span class="ai-provider-icon" aria-hidden="true">${providerIcon(item.id)}</span><span><b>${item.name}</b><small>${item.caption}</small></span><span class="ai-provider-check" aria-hidden="true">✓</span></button>`).join('')}</div></nav>
         </div>
         <nav class="ai-plugin-navigation" data-extension-panel="plugins" aria-label="插件列表" ${extensionTab !== 'plugins' ? 'hidden' : ''}><h3>插件列表</h3><button class="ai-provider" type="button" aria-pressed="true" aria-controls="aiPanel-plugins"><span class="ai-provider-icon" aria-hidden="true">✦</span><span><b>Miss.MR</b><small>内置助手</small></span><span class="ai-provider-check" aria-hidden="true">✓</span></button></nav>
       </aside>

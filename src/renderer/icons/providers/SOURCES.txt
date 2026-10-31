@@ -1,0 +1,9 @@
+Provider/model SVG logos are vendored from Lobe Icons:
+https://github.com/lobehub/lobe-icons
+Revision: 8b7bbc433d38437fa2b0cca58ae896917162b812
+Original directory: packages/static-svg/icons
+Files: openai.svg, deepseek-color.svg, qwen-color.svg,
+       siliconcloud-color.svg, ollama.svg, claude-color.svg
+License: MIT (see LICENSE.txt in this directory).
+Brand names and trademarks belong to their respective owners.
+These static logos load locally; they do not make network requests.

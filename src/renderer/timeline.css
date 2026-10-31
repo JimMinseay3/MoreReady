@@ -1,0 +1,34 @@
+.board-timeline { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 280px; min-width: 0; }
+.timeline-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 0 14px; }
+.timeline-heading > div:first-child { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.timeline-heading b { font-size: 13px; font-weight: 500; }
+.timeline-heading span { color: var(--dim); font-size: 11px; }
+.timeline-range-controls { display: flex; align-items: center; gap: 4px; flex: none; }
+.timeline-scroller { flex: 1; min-height: 220px; max-height: 65vh; overflow: auto; border: 1px solid var(--line); border-radius: 7px; scrollbar-width: thin; background: var(--panel-bg); }
+.timeline-scroller:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.timeline-table { --timeline-day-width: 48px; --timeline-label-width: 210px; width: calc(var(--timeline-label-width) + var(--timeline-days) * var(--timeline-day-width)); min-width: 100%; }
+.timeline-date-head, .timeline-row { display: grid; grid-template-columns: var(--timeline-label-width) minmax(0, 1fr); }
+.timeline-date-head { position: sticky; top: 0; z-index: 4; background: var(--panel-bg); border-bottom: 1px solid var(--line); }
+.timeline-corner { position: sticky; left: 0; z-index: 2; display: flex; align-items: center; padding: 12px; border-right: 1px solid var(--line); background: var(--panel-bg); font-size: 12px; color: var(--dim); }
+.timeline-dates { display: grid; grid-template-columns: repeat(var(--timeline-days), var(--timeline-day-width)); }
+.timeline-day { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; height: 54px; border-right: 1px solid var(--line); font-size: 11px; color: var(--text); }
+.timeline-day small { color: var(--dim); font-size: 10px; }
+.timeline-day.weekend { background: var(--field-bg); }
+.timeline-day.today { color: var(--accent-ink); background: var(--accent-soft); font-weight: 600; }
+.timeline-rows { position: relative; }
+.timeline-row { min-height: 62px; border-bottom: 1px solid var(--line); }
+.timeline-row:last-child { border-bottom: 0; }
+.timeline-task-label { position: sticky; left: 0; z-index: 2; min-width: 0; padding: 10px 12px; background: var(--panel-bg); border-right: 1px solid var(--line); }
+.timeline-task-label > button { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; font: inherit; font-size: 12px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.timeline-task-label > div { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--dim); min-width: 0; }
+.timeline-task-label small { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timeline-date-link { padding: 0; border: 0; background: transparent; color: var(--dim); font: inherit; font-size: 10px; white-space: nowrap; cursor: pointer; margin-left: auto; }
+.timeline-date-link:hover, .timeline-task-label > button:hover { text-decoration: underline; color: var(--text); }
+.timeline-track { position: relative; min-width: 0; background: repeating-linear-gradient(to right, transparent 0, transparent calc(var(--timeline-day-width) - 1px), var(--line) calc(var(--timeline-day-width) - 1px), var(--line) var(--timeline-day-width)); }
+.timeline-milestone { position: absolute; left: calc(var(--task-day) * var(--timeline-day-width) + 4px); top: 14px; height: 32px; width: calc(var(--timeline-day-width) - 8px); border: 1px solid var(--task-color); border-left-width: 3px; border-radius: 5px; background: color-mix(in srgb, var(--task-color) 18%, var(--panel-bg)); color: var(--text); cursor: pointer; padding: 0 4px; font: inherit; font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; z-index: 1; }
+.timeline-milestone:hover { background: color-mix(in srgb, var(--task-color) 30%, var(--panel-bg)); }
+.timeline-row.done .timeline-milestone { opacity: .6; }
+.timeline-row.done .timeline-task-label > button { color: var(--dim); text-decoration: line-through; }
+.timeline-outside { position: absolute; left: 14px; top: 23px; color: var(--dim2); font-size: 10px; background: var(--panel-bg); }
+.timeline-today-line { position: absolute; top: 0; bottom: 0; left: calc(var(--timeline-label-width) + var(--timeline-today) * var(--timeline-day-width)); width: 2px; background: var(--accent); opacity: .4; pointer-events: none; }
+@media (max-width: 700px) { .timeline-table { --timeline-label-width: 170px; } .timeline-heading { align-items: flex-start; } }

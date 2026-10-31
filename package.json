@@ -1,6 +1,6 @@
 {
   "name": "moreready-widget",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "MoreReady：桌面项目与任务管理应用",
   "productName": "MoreReady",
@@ -19,6 +19,7 @@
     "verify:views": "node tools/verify-display-modes.js",
     "verify:calendar": "node tools/verify-calendar.js",
     "verify:tabs": "node tools/verify-tabs.js",
+    "verify:workspace": "node tools/verify-workspace-layout.js",
     "test:updates": "node tools/test-updates.js",
     "verify:updates": "node tools/verify-updates.js",
     "dist:win": "node tools/build-icon.js && electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never && node tools/verify-release.js",

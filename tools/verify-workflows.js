@@ -95,7 +95,7 @@ const taskData = page => page.evaluate(() => JSON.parse(JSON.stringify(window.PM
     await page.reload(); await page.waitForSelector('[data-action="toggle-board-view"]'); assert.equal(await view.getAttribute('data-value'), 'detailed');
     // The relocated project action follows the selected project; inspecting the form sends no request.
     await page.click('[data-nav="projects"]'); await page.click('[data-open-project="q"]');
-    await page.click('#projectCanvasTools [data-ai-work="review"]');
+    await page.click('[data-ai="toggle"]'); await page.click('[data-ai="menu"]'); await page.click('#aiToolsMenu [data-ai-work="review"]');
     assert.equal(await page.inputValue('#aiWorkProject'), 'q'); await verifyFormSelects(page);
     await page.selectOption('#aiWorkProject', 'p');
     assert.equal(await page.inputValue('#aiWorkProject'), 'p'); await verifyFormSelects(page);
@@ -168,7 +168,7 @@ const taskData = page => page.evaluate(() => JSON.parse(JSON.stringify(window.PM
     assert.equal(await page.locator('[data-ai-apply]').count(), 0); assert.match(await page.locator('#aiMessages').innerText(), /确认验收范围/);
     await page.click('[data-ai="new-chat"]'); await page.click('[data-ai="close"]');
     await page.click('[data-nav="settings"]'); await page.click('[data-drop="theme"]'); await page.click('.drop-item[data-value="graphite"]');
-    await page.click('[data-nav="projects"]'); await page.click('#projectCanvasTools [data-ai-work="review"]');
+    await page.click('[data-nav="projects"]'); await page.click('[data-ai="toggle"]'); await page.click('[data-ai="menu"]'); await page.click('#aiToolsMenu [data-ai-work="review"]');
     await verifyFormSelects(page); await page.screenshot({ path: path.resolve('shots/ai-workflow-select-dark.png') });
     await page.setViewportSize({ width: 900, height: 680 });
     await verifyFormSelects(page);

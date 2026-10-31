@@ -10,9 +10,19 @@
 <link rel="stylesheet" href="ai.css" />
 <link rel="stylesheet" href="shortcuts.css" />
 <link rel="stylesheet" href="workspace.css" />
+<link rel="stylesheet" href="timeline.css" />
 </head>
 <body>
   <div id="app" class="app desktop-app" data-theme="aurora">
+    <aside class="rail" id="rail">
+      <header class="rail-brand">
+        <button class="brand" data-action="home" title="MoreReady · 今日概览">
+          <span class="workspace-mark" aria-hidden="true">M</span><span class="workspace-name">MoreReady</span><svg class="workspace-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 6 3 3 3-3"/></svg>
+        </button>
+      </header>
+      <nav class="rail-nav" id="railNav" aria-label="主导航"></nav>
+      <footer class="rail-foot"></footer>
+    </aside>
     <header class="desktop-titlebar" id="desktopTitlebar">
       <div class="workspace-tab-bar"><div class="workspace-tabs" id="workspaceTabs" role="tablist" aria-label="工作区标签页"></div><button class="workspace-tab-new" data-drop="workspace-tab" aria-label="新建标签页" aria-haspopup="listbox" aria-expanded="false" title="新建标签页">＋</button></div>
       <div class="titlebar-drag-space" aria-hidden="true"></div>
@@ -23,22 +33,6 @@
       </div>
     </header>
     <div class="desktop-workspace">
-
-    <!-- ============ 竖向悬浮菜单（QQ 主菜单式整条竖栏） ============ -->
-    <aside class="rail" id="rail">
-
-      <header class="rail-brand">
-        <button class="brand" data-action="home" title="MoreReady · 今日概览">
-          <span class="workspace-mark" aria-hidden="true">M</span><span class="workspace-name">MoreReady</span><svg class="workspace-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 6 3 3 3-3"/></svg>
-        </button>
-      </header>
-
-      <nav class="rail-nav" id="railNav" aria-label="主导航">
-        <!-- 由 ui.js 渲染 -->
-      </nav>
-
-      <footer class="rail-foot"></footer>
-    </aside>
 
     <!-- ============ 向右展开的详细页面 ============ -->
     <main class="panel" id="panel" aria-live="polite">
@@ -79,6 +73,7 @@
   <script src="appearance.js"></script>
   <script src="color-picker.js"></script>
   <script src="project-groups.js"></script>
+  <script src="timeline-view.js"></script>
   <script src="shortcuts.js"></script>
   <script src="ai-workflow.js"></script>
   <script src="ai-assistant.js"></script>

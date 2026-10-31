@@ -35,7 +35,7 @@ require(${JSON.stringify(path.join(ROOT, 'src/main.js'))});
     await page.waitForSelector('#aboutUpdate');
     assert.equal(await page.locator('.about-page > *').count(), 4);
     const info = await page.evaluate(() => window.PM.updateInfo());
-    assert.equal(info.supported, true); assert.equal(info.releaseUrl, 'https://github.com/JimMinseay3/MoreReady/releases/latest');
+    assert.equal(info.supported, true); assert.equal(info.releaseUrl, 'https://github.com/JimMinseay3/release/releases/latest');
     assert.equal((await page.evaluate(() => window.PM.info())).storePath, path.join(data, 'store.json'));
     await app.evaluate(() => { global.updateScenario = 'error'; });
     await page.click('[data-action="check-update"]'); await page.waitForFunction(() => document.querySelector('.about-update-status').textContent.includes('更新失败'));

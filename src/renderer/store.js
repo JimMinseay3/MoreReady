@@ -49,6 +49,7 @@
         accent: '#c18b38',
         compact: false,
         boardView: 'simple',
+        boardLayout: 'board',
         canvasView: 'detailed',
         calendarView: 'simple',
         alwaysOnTop: false,
@@ -369,9 +370,10 @@
     raw.settings = Object.assign({
       theme: 'system', accent: '#c18b38',
       compact: false, alwaysOnTop: false, showDoneInBoard: false, weekStart: 1, rememberLast: true, closeToTray: false,
-      boardView: 'simple', canvasView: 'detailed', calendarView: 'simple',
+      boardView: 'simple', boardLayout: 'board', canvasView: 'detailed', calendarView: 'simple',
     }, raw.settings || {});
     if (!['simple', 'detailed'].includes(raw.settings.calendarView)) raw.settings.calendarView = 'simple';
+    if (!['board', 'timeline'].includes(raw.settings.boardLayout)) raw.settings.boardLayout = 'board';
     migrateSettings(raw.settings, fromSchema);
     raw.tags = Array.isArray(raw.tags) ? raw.tags : DEFAULT_TAGS.slice();
     const groupIds = new Set();
