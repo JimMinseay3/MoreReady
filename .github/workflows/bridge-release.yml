@@ -1,0 +1,37 @@
+name: Legacy update feed bridge
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing dedicated release tag
+        default: v0.2.2
+        required: true
+permissions:
+  contents: write
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Download and verify the public installer
+        run: |
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          gh release download "$VERSION" --repo JimMinseay3/release --dir release
+          node tools/verify-release.js
+          cd release
+          sha256sum --check SHA256SUMS.txt
+      - name: Publish the one-time migration update
+        run: |
+          if gh release view "$VERSION" --repo JimMinseay3/MoreReady --json isDraft > existing.json; then
+            node -e "if (!require('./existing.json').isDraft) process.exit(1)"
+          else
+            gh release create "$VERSION" --repo JimMinseay3/MoreReady --target main --draft --title "MoreReady $VERSION" --notes "Migration update: future in-app updates use https://github.com/JimMinseay3/release/releases/latest ."
+          fi
+          gh release upload "$VERSION" --repo JimMinseay3/MoreReady release/*.exe release/*.blockmap release/latest.yml release/SHA256SUMS.txt --clobber
+          gh release edit "$VERSION" --repo JimMinseay3/MoreReady --draft=false --latest
