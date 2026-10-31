@@ -1,6 +1,14 @@
 'use strict';
 const source = require('./renderer/release-config');
 
+async function configureUpdateProxy(session, proxy = process.env.MOREREADY_UPDATE_PROXY) {
+  if (!session) return;
+  const config = proxy ? { mode: 'fixed_servers', proxyRules: proxy } : { mode: 'system' };
+  await session.setProxy(config);
+  // Drop only the updater partition's pooled connections after changing/reloading its route.
+  await session.closeAllConnections();
+}
+
 function resolveUserDataPath({ currentPath, appDataPath, name }, path = require('node:path')) {
   const normal = value => path.resolve(value).toLowerCase();
   // Packaged branding must not give an existing workspace a new, empty data directory.
@@ -42,11 +50,11 @@ function createUpdateService({ app, getUpdater, onChange = () => {}, beforeInsta
     info,
     check() {
       if (!supported || ['downloading', 'downloaded', 'installing'].includes(state.status)) return Promise.resolve(info());
-      return run(async () => { set({ status: 'checking', retry: 'check' }); await prepare().checkForUpdates(); return info(); });
+      return run(async () => { set({ status: 'checking', retry: 'check' }); const client = prepare(); if (client.netSession) await configureUpdateProxy(client.netSession); await client.checkForUpdates(); return info(); });
     },
     download() {
       if (!supported || !state.version || !['available', 'error', 'downloading'].includes(state.status)) return Promise.resolve(info());
-      return run(async () => { set({ status: 'downloading', percent: 0, retry: 'download' }); await prepare().downloadUpdate(); return info(); });
+      return run(async () => { set({ status: 'downloading', percent: 0, retry: 'download' }); const client = prepare(); if (client.netSession) await configureUpdateProxy(client.netSession); await client.downloadUpdate(); return info(); });
     },
     install() {
       if (!supported || state.status !== 'downloaded') return info();
@@ -58,4 +66,4 @@ function createUpdateService({ app, getUpdater, onChange = () => {}, beforeInsta
     },
   };
 }
-module.exports = { createUpdateService, resolveUserDataPath };
+module.exports = { createUpdateService, resolveUserDataPath, configureUpdateProxy };

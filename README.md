@@ -221,3 +221,5 @@ npm run verify:desktop-workflows
 `verify:system` 使用临时项目数据和独立的 Windows 测试应用标识，检查真实的通知显示回调及自启动项写入/移除，结束时清理测试启动项和快捷方式；不改动正式应用的自启动设置。浏览器权限、重复提醒与失败状态使用隔离浏览器及模拟通知验证。系统通知横幅的实际位置和显示时间由系统控制。
 
 发行仓库：https://github.com/JimMinseay3/release 。后续在该仓库 Actions 运行 Publish MoreReady，选择源码分支或标签，即可打包发布，无需跨仓库令牌。
+
+更新网络：检查与下载均使用更新器独立会话，默认跟随系统代理，重试前清理旧连接。可用 MOREREADY_UPDATE_PROXY 指定 HTTP/SOCKS 代理规则；不修改 Windows 系统代理，也不改变 AI 接口的网络设置。

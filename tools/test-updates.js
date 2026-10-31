@@ -2,9 +2,15 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const path = require('node:path');
-const { createUpdateService, resolveUserDataPath } = require('../src/update-service');
+const { createUpdateService, resolveUserDataPath, configureUpdateProxy } = require('../src/update-service');
 
 (async () => {
+  const proxyCalls = [];
+  const session = { setProxy: async config => proxyCalls.push(config), closeAllConnections: async () => proxyCalls.push('close') };
+  await configureUpdateProxy(session, '');
+  await configureUpdateProxy(session, 'http://127.0.0.1:7897');
+  assert.deepEqual(proxyCalls, [{ mode: 'system' }, 'close', { mode: 'fixed_servers', proxyRules: 'http://127.0.0.1:7897' }, 'close']);
+  await assert.rejects(configureUpdateProxy({ setProxy: async () => { throw new Error('proxy unavailable'); } }, ''), /proxy unavailable/);
   const roaming = 'C:\\Users\\Fixture\\AppData\\Roaming';
   assert.equal(resolveUserDataPath({ currentPath: path.win32.join(roaming, 'MoreReady'), appDataPath: roaming, name: 'MoreReady' }, path.win32), path.win32.join(roaming, 'moreready-widget'));
   assert.equal(resolveUserDataPath({ currentPath: 'C:\\Temp\\isolated-profile', appDataPath: roaming, name: 'MoreReady' }, path.win32), 'C:\\Temp\\isolated-profile');
